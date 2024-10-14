@@ -15,16 +15,27 @@ public:
         InitiMatch();
     }
 
-    // Функция для выполнения поиска максимального паросочетания и вывода результата
+    // Функция для вывода результата
     void PrintResult(std::ostream& out) {
-        int max_matching = FindMaxMatching();
-        out << "Maximum matching size: " << max_matching << "\n";
+        out << "Maximum matching size: " << FindMaxMatching() << "\n";
 
         for (const auto& [v, u] : match_) {
             if (u != -1) {
                 out << u << " " << v << "\n";
             }
         }
+    }
+
+    // Функция для поиска максимального паросочетания
+    int FindMaxMatching() {
+        visited_.assign(n_, false);
+
+        int max_matching = 0;
+        for (const auto& [v, u] : graph_) {
+            if (FindAugmentingPath(v)) ++max_matching;
+        }
+
+        return max_matching;
     }
 private:
     std::vector<std::pair<int, int>> graph_;
@@ -46,8 +57,8 @@ private:
 
     // Функция для инициализации массива паросочетаний (изначально все вершины свободны)
     void InitiMatch() {
-        for (const auto& [v, u] : graph_) {
-            match_[u] = -1;
+        for (const auto& [u, v] : graph_) {
+            match_[v] = -1;
         }
     }
 
@@ -56,13 +67,6 @@ private:
         std::stack<int> stk;
         stk.push(start);
 
-        std::vector<int> parent(n_, -1);
-
-        std::vector<std::pair<int, int>> current_edges;
-        copy_if(graph_.begin(), graph_.end(), back_inserter(current_edges), [start](const std::pair<int, int>& edge) {
-            return edge.first == start;
-            });
-
         while (!stk.empty()) {
             int cur = stk.top();
             stk.pop();
@@ -70,24 +74,15 @@ private:
             if (visited_[cur]) continue;
             visited_[cur] = true;
 
-            for (const auto& [_, to] : current_edges) {
-                if (match_[to] == -1) {
-                    int u = cur;
-                    int v = to;
-
-                    while (u != -1) {
-                        int next = match_[v];
-                        match_[v] = u;
-                        v = next;
-                        u = parent[u];
+            for (const auto& [u, v] : graph_) {
+                if (u == cur) {
+                    if (match_[v] == -1) {
+                        match_[v] = cur;
+                        return true;
                     }
-
-                    return true;
-                }
-
-                if (!visited_[match_[to]]) {
-                    parent[match_[to]] = cur;
-                    stk.push(match_[to]);
+                    else if (!visited_[match_[v]]) {
+                        stk.push(match_[v]);
+                    }
                 }
             }
         }
@@ -95,26 +90,16 @@ private:
         return false;
     }
 
-    // Функция для поиска максимального паросочетания
-    int FindMaxMatching() {
-        visited_.assign(n_, false);
-
-        int max_matching = 0;
-        for (const auto& [v, u] : graph_) {
-            if (FindAugmentingPath(v)) ++max_matching;
-        }
-
-        return max_matching;
-    }
 };
 
 void LogExecutionTime(std::ostream& log, const std::string& filename) {
     int n = 10;
     int sum = 0;
     log << "File: " << filename << "\n";
+    BipartiteMatching matching(filename);
     for (size_t i = 0; i < n; ++i) {
         auto start = std::chrono::high_resolution_clock::now();
-        BipartiteMatching matching(filename);
+        int cnt = matching.FindMaxMatching();
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
